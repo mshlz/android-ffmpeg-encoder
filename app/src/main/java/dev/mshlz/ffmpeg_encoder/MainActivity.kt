@@ -1,11 +1,9 @@
 package dev.mshlz.ffmpeg_encoder
 
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Context.CLIPBOARD_SERVICE
 import android.content.res.AssetManager
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.horizontalScroll
@@ -21,10 +19,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,13 +35,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat.getSystemService
 import dev.mshlz.ffmpeg_encoder.ui.theme.FFMPEGEncoderTheme
 import dev.mshlz.ffmpeg_encoder.utils.CommandResult
 import dev.mshlz.ffmpeg_encoder.utils.exec
@@ -70,9 +68,11 @@ class MainActivity : ComponentActivity() {
 //        exec("ls -la ${filesDir.absolutePath}")
 //        exec("${filesDir.absolutePath}/ffmpeg -version")
 //        exec("${filesDir.absolutePath}/ffmpeg -codecs")
+        val externalDir = getExternalFilesDir("")
+
         DEFAULT_CMD_STRING =
             "ffmpeg -y -i ${filesDir.absolutePath}/Cactus_1920x1080_50.mp4 -c:v hevc_mediacodec -b:v 5000k ${
-                getExternalFilesDir("")
+                externalDir
             }/cactus4.mp4"
 
         val executorService = Executors.newSingleThreadExecutor()
@@ -89,13 +89,13 @@ class MainActivity : ComponentActivity() {
 
             val clipboardManager = LocalClipboardManager.current
 
-
             FFMPEGEncoderTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val context = LocalContext.current
 
                     Column(
                         modifier = Modifier.verticalScroll(
@@ -108,7 +108,7 @@ class MainActivity : ComponentActivity() {
                             placeHolder = "..."
                         )
 
-                        Row {
+                        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
                             Button(
 //                                enabled = false,
                                 onClick = {
@@ -119,7 +119,8 @@ class MainActivity : ComponentActivity() {
                                             } else {
                                                 it
                                             }
-                                        }
+                                        }.replace("\$home", externalDir!!.absolutePath)
+                                            .replace("\$internal", filesDir.absolutePath)
 
                                         exec(cmd).also {
                                             resultState.value = it
@@ -162,6 +163,51 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Text(text = "reset cmd")
                             }
+
+                            OutlinedButton(
+                                onClick = {
+                                    resultState.value = CommandResult(
+                                        stdout = """
+                                        | Available alias:
+                                        | ${'$'}home     -> alias for external storage path (android/data/.../files)
+                                        | ${'$'}internal -> alias for internal storage (app protect storage)
+                                        | 
+                                        | # How to copy new build
+                                        | 1. Copy the ffmpeg binary to Android/data/dev/mshlz.ffmpeg_encoder/files/bin
+                                        | 2. Open the app, then click in the button "copy ext to internal"
+                                        | 3. Run the follow command to fix the permission of the binary:
+                                        |    chmod 500 ${'$'}internal/[nameOfTheBinary]
+                                        | 4. Now you can run it with:
+                                        |    ${'$'}internal/[nameOfTheBinary] ...
+                                        | If the [nameOfTheBinary] starts with ffmpeg, then you can run
+                                        |    [nameOfTheBinary] ...
+                                    """.trimMargin()
+                                    )
+                                }
+                            ) {
+                                Text(text = "help")
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+
+                                    executorService.execute {
+                                        exec("cp -r $externalDir/bin/. ${filesDir.absolutePath}").also {
+                                            runOnUiThread {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Files copied!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+
+                                    }
+                                }
+                            ) {
+                                Text(text = "copy ext to internal")
+                            }
+
                         }
 
                         Column(modifier = Modifier.padding(10.dp)) {

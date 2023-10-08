@@ -51,7 +51,7 @@ private inline fun appendInputStreamToBuffer(
     val bufReader = BufferedReader(inpReader)
 
     bufReader.forEachLine {
-        stringBuffer.append(it +  '\n')
+        stringBuffer.append(it + '\n')
         if (debug) {
             Log.d(TAG, it)
         }
