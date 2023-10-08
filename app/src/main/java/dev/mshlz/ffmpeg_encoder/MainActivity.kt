@@ -208,6 +208,28 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "copy ext to internal")
                             }
 
+                            OutlinedButton(
+                                onClick = {
+
+                                    executorService.execute {
+                                        exec("rm -rf ${filesDir.absolutePath}").also {
+                                            runOnUiThread {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Internal storage cleared!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+
+                                                finish()
+                                            }
+                                        }
+
+                                    }
+                                }
+                            ) {
+                                Text(text = "clear internal storage")
+                            }
+
                         }
 
                         Column(modifier = Modifier.padding(10.dp)) {
